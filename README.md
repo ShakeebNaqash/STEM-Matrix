@@ -6,6 +6,7 @@
 ![Frontend](https://img.shields.io/badge/frontend-Next.js-black)
 ![Backend](https://img.shields.io/badge/backend-FastAPI-009688)
 ![Model](https://img.shields.io/badge/model-SLM%20%2B%20QLoRA-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
 B.Tech Major Project, Department of Computer Science & Engineering, Islamic University of Science and Technology (IUST), Awantipora, Jammu & Kashmir, India. 2026.
 
@@ -352,6 +353,3 @@ Results will be added here once the evaluation is complete.
 8. Asai et al., *Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection*, ICLR 2024.
 9. Es et al., *RAGAS: Automated Evaluation of Retrieval Augmented Generation*, EACL 2024 (System Demonstrations).
 
-## License
-
-To be decided. Add a `LICENSE` file (MIT or Apache-2.0 are common choices for academic projects).
