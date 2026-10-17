@@ -337,9 +337,9 @@ Results will be added here once the evaluation is complete.
 
 | Area | Owner |
 |---|---|
-| Model, data, retrieval and evaluation | TBD |
-| Solvers, router, self-healing loop and practice mode | TBD |
-| Frontend and API layer | TBD |
+| Model, data, retrieval and evaluation | Shakeeb |
+| Solvers, router, self-healing loop and practice mode | Salik |
+| Frontend and API layer | Muizza |
 
 ## References
 
