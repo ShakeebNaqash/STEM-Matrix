@@ -72,22 +72,22 @@ A router classifies each question and sends it down the right path. Both paths s
 
 ```mermaid
 flowchart TD
-    Q[Student question] --> R{Router}
-    R -->|Out of scope| X[Polite refusal]
-    R -->|Textbook Q&A| RET[Hybrid retrieval<br/>BM25 + dense + RRF]
-    R -->|Problem solving| RET
-    RET --> CONF{Relevant passages<br/>found?}
-    CONF -->|No| NOSRC[Answer from model only<br/>labelled: Model, no source]
-    CONF -->|Yes, Q&A| GEN[SLM writes grounded answer<br/>with citation markers]
-    GEN --> CHECK[Backend validates citations<br/>against retrieved passages]
-    CHECK --> OUT[Answer with source labels<br/>and book references]
-    CONF -->|Yes, solving| SLM[SLM reasoning +<br/>structured JSON]
-    SLM --> SOL[Deterministic solver]
-    SOL --> V{Answers match?}
-    V -->|Yes| A[Verified answer + steps + sources]
-    V -->|No, attempts left| FB[Error feedback to SLM]
+    Q["Student question"] --> R{"Router"}
+    R -->|"Out of scope"| X["Polite refusal"]
+    R -->|"Textbook QA"| RET["Hybrid retrieval: BM25 + dense + RRF"]
+    R -->|"Problem solving"| CTX["Retrieve formulas for context (optional)"]
+    RET --> CONF{"Relevant passages found?"}
+    CONF -->|"No"| NOSRC["Answer from model only, labelled Model"]
+    CONF -->|"Yes"| GEN["SLM writes grounded answer with citation markers"]
+    GEN --> CHECK["Backend validates citations against retrieved passages"]
+    CHECK --> OUT["Answer with source labels and book references"]
+    CTX --> SLM["SLM reasoning + structured JSON"]
+    SLM --> SOL["Deterministic solver"]
+    SOL --> V{"Answers match?"}
+    V -->|"Yes"| A["Verified answer + steps + sources"]
+    V -->|"No, attempts left"| FB["Error feedback to SLM"]
     FB --> SLM
-    V -->|No, attempts exhausted| FALL[Return solver answer with a note]
+    V -->|"No, attempts exhausted"| FALL["Return solver answer with a note"]
 ```
 
 ## Source Labels and Citations
