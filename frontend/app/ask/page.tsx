@@ -1,0 +1,10 @@
+import type { Metadata } from "next";
+import { ChatScreen } from "@/components/chat/chat-screen";
+
+export const metadata: Metadata = {
+  title: "Ask",
+};
+
+export default function AskPage() {
+  return <ChatScreen />;
+}
