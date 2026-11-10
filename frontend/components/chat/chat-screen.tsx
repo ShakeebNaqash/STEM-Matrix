@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MenuIcon } from "lucide-react";
 import { AnswerMessage } from "@/components/chat/answer-message";
 import { Composer } from "@/components/chat/composer";
@@ -9,8 +9,10 @@ import { SessionList } from "@/components/chat/session-list";
 import { useSessions } from "@/components/session-provider";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { listBooks, sendFeedback, streamChat } from "@/lib/api";
-import type { Book, ChatMessage, Citation, HistoryTurn, Subject } from "@/lib/types";
+import { useHealth } from "@/components/health-provider";
+import { enqueueFeedback } from "@/lib/feedback-outbox";
+import { isServerDown, listBooks, sendFeedback, streamChat } from "@/lib/api";
+import type { Book, ChatMessage, Citation, FeedbackRequest, HistoryTurn, MessageFeedback, Subject } from "@/lib/types";
 
 const SUGGESTIONS = [
   "What is Lenz's law?",
@@ -18,6 +20,12 @@ const SUGGESTIONS = [
   "Formula for integration by parts",
   "Eigenvalues of [[2, 1], [1, 2]]",
 ];
+
+function answerText(message: ChatMessage): string {
+  const parts = message.segments.map((segment) => segment.text);
+  if (message.clarification) parts.push(message.clarification.message);
+  return parts.join("\n");
+}
 
 function historyOf(messages: ChatMessage[]): HistoryTurn[] {
   return messages
@@ -33,6 +41,7 @@ function historyOf(messages: ChatMessage[]): HistoryTurn[] {
 
 export function ChatScreen() {
   const { store, dispatch } = useSessions();
+  const { phase, refresh } = useHealth();
   const session = store.sessions.find((item) => item.id === store.activeId) ?? store.sessions[0];
   const [draft, setDraft] = useState("");
   const [books, setBooks] = useState<Book[]>([]);
@@ -42,7 +51,10 @@ export function ChatScreen() {
   const [chatsOpen, setChatsOpen] = useState(false);
   const [inspectOpen, setInspectOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const followRef = useRef(true);
+  const pinningRef = useRef(false);
 
   useEffect(() => {
     void listBooks()
@@ -50,8 +62,20 @@ export function ChatScreen() {
       .catch(() => setBooks([]));
   }, []);
 
+  const pinToBottom = useCallback(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    pinningRef.current = true;
+    scroller.scrollTop = scroller.scrollHeight;
+    requestAnimationFrame(() => {
+      pinningRef.current = false;
+    });
+  }, []);
+
   const sessionRef = useRef(session);
-  sessionRef.current = session;
+  useEffect(() => {
+    sessionRef.current = session;
+  });
 
   useEffect(() => {
     const current = sessionRef.current;
@@ -73,8 +97,26 @@ export function ChatScreen() {
   }, [session?.id]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [session?.messages]);
+    followRef.current = true;
+    pinToBottom();
+  }, [session?.id, pinToBottom]);
+
+  useEffect(() => {
+    if (!followRef.current) return;
+    pinToBottom();
+  }, [session?.messages, pinToBottom]);
+
+  const answerPending = session?.messages.some((message) => message.pending) ?? false;
+  useEffect(() => {
+    if (!answerPending) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      abortRef.current?.abort();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [answerPending]);
 
   if (!session) return null;
 
@@ -91,9 +133,17 @@ export function ChatScreen() {
     openMobileInspect();
   }
 
+  function onMessagesScroll() {
+    const scroller = scrollerRef.current;
+    if (!scroller || pinningRef.current) return;
+    const distance = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+    followRef.current = distance < 80;
+  }
+
   async function ask(question: string) {
     const trimmed = question.trim();
-    if (!trimmed || pending) return;
+    if (!trimmed || pending || phase === "offline") return;
+    followRef.current = true;
     const sessionId = session.id;
     const user: ChatMessage = {
       id: crypto.randomUUID(),
@@ -116,6 +166,7 @@ export function ChatScreen() {
     const controller = new AbortController();
     abortRef.current = controller;
 
+    let finished = false;
     try {
       await streamChat(
         {
@@ -164,6 +215,7 @@ export function ChatScreen() {
               openMobileInspect();
               break;
             case "done":
+              finished = true;
               dispatch({
                 type: "patch",
                 sessionId,
@@ -175,6 +227,44 @@ export function ChatScreen() {
                 }),
               });
               break;
+            case "error":
+              finished = true;
+              dispatch({
+                type: "patch",
+                sessionId,
+                messageId: assistant.id,
+                update: (message) => ({
+                  ...message,
+                  pending: false,
+                  error: event.data.message,
+                }),
+              });
+              break;
+            case "solver_result":
+              dispatch({
+                type: "patch",
+                sessionId,
+                messageId: assistant.id,
+                update: (message) => ({
+                  ...message,
+                  outcome: event.data,
+                }),
+              });
+              setVerifyId(assistant.id);
+              setTab("verification");
+              openMobileInspect();
+              break;
+            case "clarification":
+              dispatch({
+                type: "patch",
+                sessionId,
+                messageId: assistant.id,
+                update: (message) => ({
+                  ...message,
+                  clarification: event.data,
+                }),
+              });
+              break;
             default: {
               const neverEvent: never = event;
               return neverEvent;
@@ -183,8 +273,35 @@ export function ChatScreen() {
         },
         controller.signal,
       );
+      if (!finished) {
+        dispatch({
+          type: "patch",
+          sessionId,
+          messageId: assistant.id,
+          update: (message) => ({
+            ...message,
+            pending: false,
+            error: "The answer was cut off. Ask again.",
+          }),
+        });
+      }
     } catch (reason: unknown) {
-      if (reason instanceof DOMException && reason.name === "AbortError") return;
+      if (isAbortError(reason)) {
+        if (finished) return;
+        dispatch({
+          type: "patch",
+          sessionId,
+          messageId: assistant.id,
+          update: (message) => ({
+            ...message,
+            pending: false,
+            note: "Stopped before the answer finished.",
+          }),
+        });
+        return;
+      }
+      if (isServerDown(reason)) void refresh();
+      if (finished) return;
       dispatch({
         type: "patch",
         sessionId,
@@ -192,9 +309,70 @@ export function ChatScreen() {
         update: (message) => ({
           ...message,
           pending: false,
-          error: reason instanceof Error ? reason.message : "The preview server could not answer.",
+          error: "Lost the connection before the answer finished. Ask again.",
         }),
       });
+    }
+  }
+
+  function openCheck(messageId: string) {
+    setVerifyId(messageId);
+    setTab("verification");
+    openMobileInspect();
+  }
+
+  function editQuestion(messageId: string) {
+    const index = session.messages.findIndex((message) => message.id === messageId);
+    const previous = session.messages.slice(0, index).reverse().find((message) => message.role === "user");
+    if (!previous) return;
+    setDraft(previous.text);
+    composerRef.current?.focus();
+  }
+
+  async function vote(
+    message: ChatMessage,
+    input: { vote: "up" | "down" | null; reason?: string; comment?: string },
+  ) {
+    const stored: MessageFeedback = { vote: input.vote, sent: false };
+    if (input.reason) stored.reason = input.reason;
+    if (input.comment) stored.comment = input.comment;
+    const index = session.messages.findIndex((item) => item.id === message.id);
+    const question = session.messages
+      .slice(0, index)
+      .reverse()
+      .find((item) => item.role === "user");
+    const payload: FeedbackRequest = {
+      messageId: message.id,
+      vote: input.vote,
+      question: question?.text ?? "",
+      answerText: answerText(message),
+      mode: message.mode ?? "",
+      segments: message.segments,
+      attempts: message.attempts,
+      createdAt: new Date().toISOString(),
+      ...(message.outcome ? { outcomeStatus: message.outcome.status } : {}),
+      ...(input.reason ? { reason: input.reason } : {}),
+      ...(input.comment ? { comment: input.comment } : {}),
+    };
+    dispatch({
+      type: "patch",
+      sessionId: session.id,
+      messageId: message.id,
+      update: (current) => ({ ...current, feedback: stored }),
+    });
+    try {
+      await sendFeedback(payload);
+      dispatch({
+        type: "patch",
+        sessionId: session.id,
+        messageId: message.id,
+        update: (current) => ({
+          ...current,
+          feedback: current.feedback ? { ...current.feedback, sent: true } : stored,
+        }),
+      });
+    } catch {
+      enqueueFeedback(payload);
     }
   }
 
@@ -231,7 +409,7 @@ export function ChatScreen() {
             Sources
           </Button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div ref={scrollerRef} onScroll={onMessagesScroll} className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto flex w-full max-w-[46rem] flex-col gap-6 px-4 py-6">
             {session.messages.length === 0 ? (
               <EmptyState onAsk={(question) => void ask(question)} />
@@ -241,28 +419,33 @@ export function ChatScreen() {
                   key={message.id}
                   message={message}
                   onCite={chooseCitation}
-                  onFeedback={(value) => {
-                    const next = message.feedback === value ? undefined : value;
-                    dispatch({
-                      type: "patch",
-                      sessionId: session.id,
-                      messageId: message.id,
-                      update: (current) => ({ ...current, feedback: next }),
-                    });
-                    if (next) void sendFeedback({ messageId: message.id, value: next });
-                  }}
+                  onEdit={() => editQuestion(message.id)}
+                  onOpenCheck={() => openCheck(message.id)}
+                  onFeedback={(input) => void vote(message, input)}
                   onFollowUp={(text) => void ask(text)}
                 />
               ))
             )}
-            <div ref={bottomRef} />
           </div>
         </div>
+        {phase === "offline" ? (
+          <p className="px-4 pt-3 text-sm leading-6">
+            The StemMatrix server isn&apos;t running. This will reconnect on its own once it&apos;s back.
+          </p>
+        ) : null}
+        {phase === "no_model" ? (
+          <p className="px-4 pt-3 text-sm leading-6 text-muted-foreground">
+            The model isn&apos;t running, so only calculations can be answered right now.
+          </p>
+        ) : null}
         <Composer
           value={draft}
           onChange={setDraft}
           onSubmit={() => void ask(draft)}
+          onStop={() => abortRef.current?.abort()}
           disabled={pending}
+          askDisabled={phase === "offline"}
+          inputRef={composerRef}
           subject={session.subject}
           bookId={session.bookId}
           books={books}
@@ -278,6 +461,7 @@ export function ChatScreen() {
           chunkId={chunkId}
           attempts={verified?.attempts ?? []}
           note={verified?.note}
+          outcome={verified?.outcome}
         />
       </aside>
 
@@ -313,11 +497,16 @@ export function ChatScreen() {
             chunkId={chunkId}
             attempts={verified?.attempts ?? []}
             note={verified?.note}
+            outcome={verified?.outcome}
           />
         </SheetContent>
       </Sheet>
     </div>
   );
+}
+
+function isAbortError(reason: unknown): boolean {
+  return typeof reason === "object" && reason !== null && "name" in reason && reason.name === "AbortError";
 }
 
 function EmptyState({ onAsk }: { onAsk: (question: string) => void }) {

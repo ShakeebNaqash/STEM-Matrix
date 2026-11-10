@@ -1,6 +1,9 @@
-import { cn } from "cn";
-import { sourceHint, sourceLabel } from "@/lib/format";
+"use client";
+
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { sourceAria, sourceExplanation, sourceLabel } from "@/lib/format";
 import type { SourceType } from "@/lib/types";
+import { cn } from "cn";
 
 const tones: Record<SourceType, string> = {
   textbook: "bg-textbook-soft text-textbook",
@@ -10,29 +13,21 @@ const tones: Record<SourceType, string> = {
 
 export function SourceBadge({ source }: { source: SourceType }) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold tracking-wide uppercase",
-        tones[source],
-      )}
-      title={sourceHint(source)}
-    >
-      {sourceLabel(source)}
-    </span>
+    <Popover>
+      <PopoverTrigger
+        openOnHover
+        delay={200}
+        aria-label={sourceAria(source)}
+        className={cn(
+          "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold tracking-wide uppercase",
+          tones[source],
+        )}
+      >
+        {sourceLabel(source)}
+      </PopoverTrigger>
+      <PopoverContent>
+        <p>{sourceExplanation(source)}</p>
+      </PopoverContent>
+    </Popover>
   );
-}
-
-export function sourceBorder(source: SourceType): string {
-  switch (source) {
-    case "textbook":
-      return "border-textbook";
-    case "solver":
-      return "border-solver";
-    case "model":
-      return "border-model";
-    default: {
-      const neverSource: never = source;
-      return neverSource;
-    }
-  }
 }

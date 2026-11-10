@@ -7,6 +7,7 @@ export type PlannedAnswer = {
   attempts: SolverAttempt[];
   segments: AnswerSegment[];
   note?: string;
+  wire?: { event: string; data: unknown }[];
 };
 
 function normalize(value: string): string {
@@ -410,11 +411,180 @@ function simplerFor(topic: string): PlannedAnswer | null {
   return null;
 }
 
+const CLARIFICATION_PATTERNS = [
+  "unit conversion",
+  "force from mass and acceleration",
+  "Ohm law current",
+  "kinetic energy",
+  "molar mass of supported formulas",
+  "balancing simple chemical equations",
+  "Reynolds number",
+  "explicit algebraic equations",
+];
+
+const PARSE_ERROR =
+  "Invalid input: expression could not be parsed (invalid syntax); check for missing operators or unbalanced brackets in 'x**'";
+
+function scriptedSolver(question: string): PlannedAnswer | null {
+  const compact = question.replace(/[\s]/g, "");
+  if (compact.includes("inverse") && compact.includes("[[1,2],[2,4]]")) {
+    return failedSolver("matrix_inverse", "Singular matrix");
+  }
+  if (compact.includes("2x+=")) return failedSolver("solve_equation", PARSE_ERROR);
+  if (compact.includes("eigen") && (compact.includes("[[0,-1],[1,0]]") || compact.includes("[[0,−1],[1,0]]"))) {
+    return verifiedSolver("matrix_eigenvalues", {
+      result: [
+        { real: 0, imaginary: 1 },
+        { real: 0, imaginary: -1 },
+      ],
+      verification: { passed: true, message: "The eigenvalues match the matrix." },
+    });
+  }
+  if (compact.includes("inverse") && compact.includes("[[2,1],[1,2]]")) {
+    return verifiedSolver("matrix_inverse", {
+      result: [
+        [0.6666666666666666, -0.3333333333333333],
+        [-0.3333333333333333, 0.6666666666666666],
+      ],
+      exact_result: "Matrix([[2/3, -1/3], [-1/3, 2/3]])",
+      details: { identity_residual_norm: 0, condition_number: 2.999999999999999 },
+      verification: { passed: true, message: "The product with the original matrix is the identity." },
+    });
+  }
+  if (compact.includes("x^2-5x+6") || compact.includes("x**2-5x+6")) {
+    return verifiedSolver("solve_equation", {
+      result: ["2", "3"],
+      exact_result: "['2', '3']",
+      details: {
+        equation: "x**2-5*x+6 = 0",
+        variable: "x",
+        symbolic_residuals: ["0", "0"],
+        solution_count: 2,
+      },
+      verification: { passed: true, message: "Both values satisfy the equation." },
+    });
+  }
+  if (compact.includes("x+y=3") && compact.includes("x-y=1")) {
+    return verifiedSolver("solve_system", {
+      result: [{ x: "2", y: "1" }],
+      verification: { passed: true, message: "The pair satisfies both equations." },
+    });
+  }
+  if (question.includes("500") && question.includes("force")) {
+    return verifiedSolver("physics_force", {
+      result: 1,
+      numeric_result: 1,
+      details: {
+        formula: "F=m*a",
+        unit: "N",
+        residual: 0,
+        preflight: {
+          conversions: [
+            { field: "mass", from: "500 g", to: "0.5 kg" },
+            { field: "acceleration", from: "2 m/s^2", to: "2 m/s^2" },
+          ],
+        },
+      },
+      verification: { passed: true, message: "Force equals mass times acceleration." },
+    });
+  }
+  if ((question.includes("integrat") || question.includes("integral")) && /x\s*(\*\*|\^)\s*3/.test(question)) {
+    return {
+      mode: "problem",
+      attempts: [],
+      segments: [],
+      wire: [
+        {
+          event: "attempt",
+          data: { attempt: 1, model_answer: "2", solver_answer: "4", matched: false, feedback: "The integral of x^3 is x^4/4." },
+        },
+        {
+          event: "attempt",
+          data: { attempt: 2, model_answer: "8", solver_answer: "4", matched: false, feedback: "From 0 to 2 that is 16/4, which is 4." },
+        },
+        solverEvent("solver_result_unmatched", "definite_integral", {
+          status: "success",
+          result: 4,
+          numeric_result: 4,
+          verification: { passed: false, message: "The model's answers were 2 and 8. The integral is 4." },
+        }),
+      ],
+    };
+  }
+  if (compact.includes("balance") && compact.includes("h2") && compact.includes("o2")) {
+    return verifiedSolver("chemistry_balance_equation", {
+      result: { balanced_equation: "2H2 + O2 -> 2H2O", coefficients: [2, 1, 2] },
+      details: { elements_balanced: ["H", "O"], method: "integer nullspace" },
+      verification: { passed: true, message: "Each element has the same count on both sides." },
+    });
+  }
+  if (question.includes("how fast") && question.includes("car")) {
+    return {
+      mode: "problem",
+      attempts: [],
+      segments: [],
+      wire: [
+        {
+          event: "clarification",
+          data: {
+            message:
+              "I could not safely map this wording to a supported calculation. Include the quantity, values and units, or use a structured solver request.",
+            supported_patterns: CLARIFICATION_PATTERNS,
+          },
+        },
+      ],
+    };
+  }
+  return null;
+}
+
+function failedSolver(solver: string, error: string): PlannedAnswer {
+  return {
+    mode: "problem",
+    attempts: [],
+    segments: buildSegments([
+      {
+        text: "The wording reached the solver, and the solver stopped.",
+        sourceType: "model",
+        citations: [],
+      },
+    ]),
+    wire: [solverEvent("failed", solver, { status: "failed", error })],
+  };
+}
+
+function verifiedSolver(solver: string, body: Record<string, unknown>): PlannedAnswer {
+  return {
+    mode: "problem",
+    attempts: [],
+    segments: buildSegments([
+      {
+        text: "The solver produced this result.",
+        sourceType: "solver",
+        citations: [],
+      },
+    ]),
+    wire: [solverEvent("verified", solver, { status: "success", ...body })],
+  };
+}
+
+function solverEvent(status: string, solver: string, body: Record<string, unknown>) {
+  return {
+    event: "solver_result",
+    data: {
+      status,
+      solver_result: { request_id: `mock-${solver}`, solver, ...body },
+    },
+  };
+}
+
 const STEM_PATTERN =
   /(integrat|deriv|matrix|eigen|field|flux|force|charge|current|voltage|calculus|physics|equation|formula|theorem|vector|probabilit|limit|differenti|\bsin\b|\bcos\b|magnetic|electric|ohm|energy|momentum|induct|circuit|gauss|ampere|coulomb|lenz|faraday|\blaw\b)/;
 
 function planCore(question: string, history: HistoryTurn[]): PlannedAnswer {
   const q = normalize(question);
+  const scripted = scriptedSolver(q);
+  if (scripted) return scripted;
   const topic = priorUserText(history);
   const wantsSimpler = /(simpler|more simply|simple terms|easier to follow|explain that)/.test(q);
   const wantsExample = /\bexample\b/.test(q);
@@ -480,7 +650,7 @@ function planCore(question: string, history: HistoryTurn[]): PlannedAnswer {
 }
 
 function applyFilter(plan: PlannedAnswer, subject: Subject | null, bookId: string | null): PlannedAnswer {
-  if ((!subject && !bookId) || plan.mode === "out_of_scope") return plan;
+  if (plan.wire || (!subject && !bookId) || plan.mode === "out_of_scope") return plan;
 
   const segments = plan.segments.flatMap((segment) => {
     if (segment.sourceType !== "textbook") return [segment];

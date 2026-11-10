@@ -129,7 +129,7 @@ const bank: BankQuestion[] = [
       segment(
         "q-ibp-short-t",
         "The product rule rearranges to the parts formula.",
-        "textbook",
+        "model",
         "calc2-ibp",
         "\\int u\\,dv = uv - \\int v\\,du",
       ),
@@ -252,12 +252,18 @@ const bank: BankQuestion[] = [
       segment(
         "q-lenz-short-t",
         "A sentence that says the induced effect opposes the change in flux is enough.",
-        "textbook",
+        "model",
         "phys2-lenz",
       ),
     ],
   },
 ];
+
+export type PracticeBankQuestion = BankQuestion;
+
+export function practiceByType(type: PracticeQuestionType): PracticeBankQuestion[] {
+  return bank.filter((question) => question.type === type);
+}
 
 function toPublic(question: BankQuestion): PracticeQuestion {
   return {
@@ -303,35 +309,60 @@ function numbersMatch(given: string, expected: string): boolean {
   return Math.abs(value - target) < 0.01;
 }
 
-function shortMatches(given: string, keywords: string[]): boolean {
+function keywordHits(given: string, keywords: string[]): { found: string[]; missing: string[] } {
   const haystack = given.toLowerCase().replace(/\s+/g, "");
-  return keywords.every((keyword) => haystack.includes(keyword.replace(/\s+/g, "")));
+  const found: string[] = [];
+  const missing: string[] = [];
+  for (const keyword of keywords) {
+    if (haystack.includes(keyword.toLowerCase().replace(/\s+/g, ""))) found.push(keyword);
+    else missing.push(keyword);
+  }
+  return { found, missing };
 }
 
-export function gradePractice(questionId: string, answer: string | string[]): GradeResult | null {
+export function gradePractice(
+  questionId: string,
+  answer: string | string[],
+  options?: { shortUngraded?: boolean },
+): GradeResult | null {
   const question = bank.find((item) => item.id === questionId);
   if (!question) return null;
 
-  let correct = false;
+  if (question.type === "short" && options?.shortUngraded) {
+    return { result: "ungraded", expected: question.expected, segments: question.segments };
+  }
+
+  let result: GradeResult["result"] = "incorrect";
+  let missing: string[] | undefined;
   switch (question.type) {
     case "mcq":
-      correct = typeof answer === "string" && answer === question.answer;
+      result = typeof answer === "string" && answer === question.answer ? "correct" : "incorrect";
       break;
     case "nat":
-      correct = typeof answer === "string" && typeof question.answer === "string" && numbersMatch(answer, question.answer);
+      result =
+        typeof answer === "string" && typeof question.answer === "string" && numbersMatch(answer, question.answer)
+          ? "correct"
+          : "incorrect";
       break;
     case "msq": {
       const given = Array.isArray(answer) ? [...answer].sort() : [];
       const expected = Array.isArray(question.answer) ? [...question.answer].sort() : [];
-      correct = given.length === expected.length && given.every((id, index) => id === expected[index]);
+      result = given.length === expected.length && given.every((id, index) => id === expected[index]) ? "correct" : "incorrect";
       break;
     }
-    case "short":
-      correct =
-        typeof answer === "string" &&
-        Array.isArray(question.answer) &&
-        shortMatches(answer, question.answer);
+    case "short": {
+      if (typeof answer !== "string" || !Array.isArray(question.answer)) {
+        result = "incorrect";
+        break;
+      }
+      const hits = keywordHits(answer, question.answer);
+      if (hits.missing.length === 0) result = "correct";
+      else if (hits.found.length > 0) {
+        result = "partial";
+        missing = hits.missing;
+      } else result = "incorrect";
       break;
+    }
     default: {
       const neverType: never = question.type;
       return neverType;
@@ -339,8 +370,9 @@ export function gradePractice(questionId: string, answer: string | string[]): Gr
   }
 
   return {
-    correct,
+    result,
     expected: question.expected,
     segments: question.segments,
+    ...(missing ? { missing } : {}),
   };
 }

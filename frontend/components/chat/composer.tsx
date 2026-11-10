@@ -1,6 +1,7 @@
 "use client";
 
-import { SendIcon } from "lucide-react";
+import type { RefObject } from "react";
+import { SendIcon, SquareIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { Book, Subject } from "@/lib/types";
@@ -10,7 +11,10 @@ export function Composer({
   value,
   onChange,
   onSubmit,
+  onStop,
   disabled,
+  askDisabled,
+  inputRef,
   subject,
   bookId,
   books,
@@ -20,7 +24,10 @@ export function Composer({
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  onStop: () => void;
   disabled: boolean;
+  askDisabled: boolean;
+  inputRef?: RefObject<HTMLTextAreaElement | null>;
   subject: Subject | null;
   bookId: string | null;
   books: Book[];
@@ -34,7 +41,7 @@ export function Composer({
       className="border-t bg-background/95 px-4 py-3 backdrop-blur-sm"
       onSubmit={(event) => {
         event.preventDefault();
-        onSubmit();
+        if (!disabled && !askDisabled) onSubmit();
       }}
     >
       <div className="mx-auto flex max-w-[42rem] flex-col gap-2">
@@ -85,20 +92,33 @@ export function Composer({
             value={value}
             onChange={(event) => onChange(event.target.value)}
             placeholder="Ask about a concept, a formula, or a numerical problem"
+            ref={inputRef}
             rows={2}
             disabled={disabled}
             className="max-h-40 min-h-16 bg-card"
             onKeyDown={(event) => {
+              if (event.key === "Escape" && disabled) {
+                event.preventDefault();
+                onStop();
+                return;
+              }
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
-                onSubmit();
+                if (!disabled && !askDisabled) onSubmit();
               }
             }}
           />
-          <Button type="submit" size="lg" disabled={disabled || value.trim().length === 0}>
-            <SendIcon />
-            Ask
-          </Button>
+          {disabled ? (
+            <Button type="button" size="lg" onClick={onStop}>
+              <SquareIcon />
+              Stop
+            </Button>
+          ) : (
+            <Button type="submit" size="lg" disabled={askDisabled || value.trim().length === 0}>
+              <SendIcon />
+              Ask
+            </Button>
+          )}
         </div>
       </div>
     </form>

@@ -24,6 +24,7 @@ B.Tech Major Project, Department of Computer Science & Engineering, Islamic Univ
 - [Tech Stack](#tech-stack)
 - [Repository Structure](#repository-structure)
 - [Getting Started](#getting-started)
+- [Run the demo](#run-the-demo)
 - [API Overview](#api-overview)
 - [Evaluation Plan](#evaluation-plan)
 - [Roadmap](#roadmap)
@@ -267,9 +268,33 @@ npm run dev                      # http://localhost:3000
 cd backend && pytest
 ```
 
+## Run the demo
+
+From the repository root, with Node.js 20 or newer:
+
+```bash
+node scripts/start.mjs --setup
+node scripts/start.mjs
+```
+
+`--setup` is the only step that uses the network. It creates `stemmatrix-unix/backend/.venv`, installs `requirements.txt`, runs `npm ci` in `frontend/`, and builds the frontend. Later starts stay offline.
+
+The script then starts the backend on port 8000 and `next start` on port 3000. It waits until `/api/health` answers, then prints the URL, the live routes, and the model mode. Ctrl+C stops both processes. If one of them exits, the script stops the other.
+
+```bash
+node scripts/start.mjs --help
+node scripts/start.mjs --mock-ui          # frontend only, scripted answers
+node scripts/start.mjs --test-model       # STEMMATRIX_MODEL=mock, pill says Test model
+node scripts/start.mjs --with-ollama      # also start ollama serve when it is installed
+node scripts/start.mjs --open             # open the browser when the app answers
+node scripts/start.mjs --rebuild          # build the frontend, then start
+```
+
+Ports default to 8000 and 3000. Change them with `--backend-port` and `--frontend-port`. Copy `scripts/demo.env.example` to `scripts/demo.env` to change `BACKEND_LIVE_ROUTES`. Without that file the frontend sends `health`, `practice`, and `grade` to the backend, which is what the backend supports today.
+
 ## API Overview
 
-The FastAPI backend publishes an OpenAPI spec at `http://localhost:8000/docs`. TypeScript types for the frontend are generated from it.
+The FastAPI backend publishes an OpenAPI spec at `http://localhost:8000/docs`. TypeScript types for the frontend are generated from it. Chat history is stored locally in the browser.
 
 | Endpoint | Method | Purpose |
 |---|---|---|
@@ -277,10 +302,9 @@ The FastAPI backend publishes an OpenAPI spec at `http://localhost:8000/docs`. T
 | `/api/sources/{chunk_id}` | GET | Fetch a cited textbook passage with its book, chapter, section and page |
 | `/api/books` | GET | List indexed books and subjects |
 | `/api/practice` | POST | Generate practice questions (MCQ, MSQ, NAT, short answer) from a chapter |
+| `/api/practice/capabilities` | GET | Which practice question types and filters the server can handle |
 | `/api/practice/grade` | POST | Grade a submitted answer |
 | `/api/feedback` | POST | Record thumbs up/down on an answer |
-| `/api/sessions` | GET | List past chat sessions |
-| `/api/sessions/{id}` | GET | Fetch a session with its attempts and sources |
 | `/api/health` | GET | Backend and model server status |
 
 *The routes above are planned and may change as the project develops.*

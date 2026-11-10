@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/components/app-shell";
+import { FeedbackSync } from "@/components/feedback-sync";
+import { HealthProvider } from "@/components/health-provider";
 import { SessionProvider } from "@/components/session-provider";
 import "katex/dist/katex.min.css";
 import "./globals.css";
@@ -54,7 +56,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="h-dvh overflow-hidden">
         <TooltipProvider>
           <SessionProvider>
-            <AppShell>{children}</AppShell>
+            <HealthProvider>
+              <FeedbackSync />
+              <AppShell>{children}</AppShell>
+            </HealthProvider>
           </SessionProvider>
         </TooltipProvider>
       </body>

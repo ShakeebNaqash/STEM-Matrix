@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MathText } from "@/components/math-text";
-import { SourceBadge, sourceBorder } from "@/components/source-badge";
+import { SourceBadge } from "@/components/source-badge";
+import { sourceBorder } from "@/lib/format";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "cn";
 

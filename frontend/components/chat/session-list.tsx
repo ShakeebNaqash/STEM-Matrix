@@ -63,7 +63,7 @@ export function SessionList({
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    className="mt-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                    className="mt-1 opacity-100 can-hover:opacity-0 can-hover:group-hover:opacity-100 focus-visible:opacity-100"
                     aria-label={`Delete ${session.title}`}
                     onClick={() => onRemove(session.id)}
                   >
