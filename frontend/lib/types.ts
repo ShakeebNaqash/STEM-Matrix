@@ -88,6 +88,7 @@ export type ChatMeta = {
   messageId: string;
   mode: ChatMode;
   retrievalNote?: string;
+  scripted?: boolean;
 };
 
 export type ChatDone = {
@@ -203,10 +204,15 @@ export type FeedbackRequest = {
   createdAt: string;
 };
 
+export const API_ROUTES = ["health", "chat", "books", "sources", "practice", "grade", "flashcards", "feedback"] as const;
+
+export type ApiRoute = (typeof API_ROUTES)[number];
+
 export type HealthStatus = {
   status: "ok";
   backend: "mock" | "live";
   model: "not_connected" | "mock" | "connected";
+  scripted: ApiRoute[];
 };
 
 export type ChatMessage = {
@@ -223,6 +229,7 @@ export type ChatMessage = {
   error?: string;
   outcome?: SolverOutcome;
   clarification?: Clarification;
+  scripted?: boolean;
 };
 
 export type StudySession = {

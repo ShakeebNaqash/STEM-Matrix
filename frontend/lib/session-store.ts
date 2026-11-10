@@ -55,6 +55,7 @@ const sampleLenz: StudySession = {
       role: "assistant",
       text: "",
       mode: "textbook",
+      scripted: true,
       attempts: [],
       segments: [
         {
@@ -116,6 +117,7 @@ const sampleIntegral: StudySession = {
       role: "assistant",
       text: "",
       mode: "problem",
+      scripted: true,
       segments: [
         {
           id: "sample-integral-1",
@@ -427,6 +429,7 @@ function readMessage(value: unknown): ChatMessage | null {
   if (outcome) message.outcome = outcome;
   const clarification = readClarification(value.clarification);
   if (clarification) message.clarification = clarification;
+  if (value.role === "assistant") message.scripted = typeof value.scripted === "boolean" ? value.scripted : true;
   return message;
 }
 

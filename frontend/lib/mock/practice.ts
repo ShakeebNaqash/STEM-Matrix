@@ -1,4 +1,5 @@
 import { citationFor } from "@/lib/mock/corpus";
+import { parseDecimal } from "@/lib/number";
 import type {
   AnswerSegment,
   GradeResult,
@@ -303,9 +304,9 @@ export function selectPracticeQuestions(input: {
 }
 
 function numbersMatch(given: string, expected: string): boolean {
-  const value = Number(given.trim());
-  const target = Number(expected);
-  if (!Number.isFinite(value) || !Number.isFinite(target)) return false;
+  const value = parseDecimal(given);
+  const target = parseDecimal(expected);
+  if (value === null || target === null) return false;
   return Math.abs(value - target) < 0.01;
 }
 

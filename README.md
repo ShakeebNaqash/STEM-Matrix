@@ -211,34 +211,35 @@ stemmatrix/
 
 ## Getting Started
 
+To run the current build, see [Run the demo](#run-the-demo).
+
 > Commands below describe the intended workflow. Adjust paths and names to match the final code.
 
 ### Prerequisites
 
 - Python 3.10+
-- Node.js 18+
+- Node.js 20+
 - [Ollama](https://ollama.com) or llama.cpp for local inference
 - A GPU is only needed for fine-tuning (free Colab/Kaggle tiers are enough); inference runs on CPU
 
 ### 1. Clone
 
 ```bash
-git clone https://github.com/<your-org>/stemmatrix.git
-cd stemmatrix
+git clone https://github.com/ShakeebNaqash/STEM-Matrix.git
+cd STEM-Matrix
 ```
 
 ### 2. Backend
 
 ```bash
-cd backend
+cd stemmatrix-unix/backend
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env             # configure model endpoint, paths
-uvicorn app.main:app --reload --port 8000
+uvicorn app.api.main:app --reload --port 8000
 ```
 
-### 3. Model
+### 3. Model (not available yet)
 
 Place the fine-tuned GGUF model in `models/` and register it with Ollama:
 
@@ -246,7 +247,7 @@ Place the fine-tuned GGUF model in `models/` and register it with Ollama:
 ollama create stemmatrix -f models/Modelfile
 ```
 
-### 4. Build the textbook index
+### 4. Build the textbook index (not available yet)
 
 Add the openly licensed books to `corpus/books/`, then:
 
@@ -265,7 +266,8 @@ npm run dev                      # http://localhost:3000
 ### Run tests
 
 ```bash
-cd backend && pytest
+cd stemmatrix-unix/backend && pytest
+cd frontend && npm run test:all
 ```
 
 ## Run the demo

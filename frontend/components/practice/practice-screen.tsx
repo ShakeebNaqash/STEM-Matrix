@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useHealth } from "@/components/health-provider";
+import { isLivePhase, useHealth } from "@/components/health-provider";
 import { createPractice, getPracticeCapabilities, gradePractice, isServerDown, listBooks } from "@/lib/api";
 import type {
   Book,
@@ -36,7 +36,7 @@ const TYPE_OPTIONS: { id: PracticeQuestionType; label: string }[] = [
 ];
 
 export function PracticeScreen() {
-  const { phase, refresh } = useHealth();
+  const { phase, scripted, refresh } = useHealth();
   const offline = phase === "offline";
   const [books, setBooks] = useState<Book[]>([]);
   const [bookId, setBookId] = useState<string>("");
@@ -210,6 +210,9 @@ export function PracticeScreen() {
 
       <section className="min-h-0 overflow-y-auto px-4 py-6">
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
+          {isLivePhase(phase) && (scripted.includes("practice") || scripted.includes("grade")) ? (
+            <p className="text-sm text-muted-foreground">These are sample questions.</p>
+          ) : null}
           {offline ? (
             <p className="text-sm leading-6">
               The StemMatrix server isn&apos;t running. This will reconnect on its own once it&apos;s back.

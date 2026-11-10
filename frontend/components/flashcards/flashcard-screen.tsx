@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { CitationChip } from "@/components/citation-chip";
 import { MathText } from "@/components/math-text";
 import { PassageView } from "@/components/passage-view";
-import { useHealth } from "@/components/health-provider";
+import { isLivePhase, useHealth } from "@/components/health-provider";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { isServerDown, listFlashcards } from "@/lib/api";
@@ -13,7 +13,7 @@ import { SUBJECTS } from "@/lib/types";
 import { cn } from "cn";
 
 export function FlashcardScreen() {
-  const { phase, refresh } = useHealth();
+  const { phase, scripted, refresh } = useHealth();
   const [cards, setCards] = useState<Flashcard[]>([]);
   const [subject, setSubject] = useState<Subject | "all">("all");
   const [order, setOrder] = useState<string[]>([]);
@@ -94,6 +94,9 @@ export function FlashcardScreen() {
         </div>
       </div>
 
+      {isLivePhase(phase) && scripted.includes("flashcards") ? (
+        <p className="mt-3 text-sm text-muted-foreground">These are sample cards.</p>
+      ) : null}
       {offline ? (
         <p className="mt-4 text-sm leading-6">
           The StemMatrix server isn&apos;t running. This will reconnect on its own once it&apos;s back.

@@ -204,6 +204,34 @@ describe("loadSavedStore", () => {
     expect(() => loadSavedStore(fallback)).not.toThrow();
   });
 
+  it("treats a saved assistant answer with no scripted flag as a preview", () => {
+    storage.setItem(
+      SESSION_STORAGE_KEY,
+      JSON.stringify({
+        activeId: "s1",
+        sessions: [
+          {
+            id: "s1",
+            title: "Old",
+            subject: null,
+            bookId: null,
+            updatedAt: 1,
+            messages: [
+              { id: "u", role: "user", text: "Hi", segments: [], attempts: [] },
+              { id: "a", role: "assistant", text: "", mode: "textbook", segments: [], attempts: [], scripted: false },
+              { id: "b", role: "assistant", text: "", mode: "textbook", segments: [], attempts: [] },
+            ],
+          },
+        ],
+      }),
+    );
+    const loaded = loadSavedStore(initialStore());
+    const messages = loaded.sessions[0]?.messages ?? [];
+    expect(messages[0]?.scripted).toBeUndefined();
+    expect(messages[1]?.scripted).toBe(false);
+    expect(messages[2]?.scripted).toBe(true);
+  });
+
   it("keeps feedback, outcomes, and clarifications across a save and load", () => {
     const store: SessionStore = {
       activeId: "s1",
@@ -219,6 +247,7 @@ describe("loadSavedStore", () => {
             {
               ...message("a", "assistant", ""),
               mode: "problem",
+              scripted: true,
               feedback: { vote: "down", reason: "Wrong answer", comment: "off by ten", sent: false },
               outcome: {
                 status: "failed",

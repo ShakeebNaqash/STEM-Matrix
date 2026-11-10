@@ -8,8 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:e2e": "playwright test",
-    "test:all": "npm run lint && npm run test && npm run build && npm run test:e2e",
+    "test:e2e": "next build && playwright test",
+    "test:all": "npm run lint && npm run test && npm run build && playwright test",
     "gen:api": "openapi-typescript ${BACKEND_URL:-http://127.0.0.1:8000}/openapi.json -o lib/generated/backend-api.ts"
   },
   "dependencies": {

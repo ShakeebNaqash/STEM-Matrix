@@ -50,6 +50,7 @@ function mockChat(chatRequest: ChatRequest): Response {
           messageId,
           mode: plan.mode,
           retrievalNote: plan.retrievalNote,
+          scripted: true,
         });
 
         if (plan.wire && plan.wire.length > 0) {

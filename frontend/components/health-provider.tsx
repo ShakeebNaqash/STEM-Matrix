@@ -3,23 +3,31 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from "react";
 import { useSyncExternalStore } from "react";
 import { getHealth } from "@/lib/api";
-import type { HealthStatus } from "@/lib/types";
+import { API_ROUTES, type ApiRoute, type HealthStatus } from "@/lib/types";
 
 export type HealthPhase = "checking" | "preview" | "ready" | "test_model" | "no_model" | "offline";
 
 type HealthContextValue = {
   phase: HealthPhase;
+  scripted: readonly ApiRoute[];
   refresh: () => Promise<void>;
+};
+
+type HealthSnapshot = {
+  phase: HealthPhase;
+  scripted: readonly ApiRoute[];
 };
 
 const HealthContext = createContext<HealthContextValue | null>(null);
 
-let phase: HealthPhase = "checking";
+const noScripted: readonly ApiRoute[] = [];
+const serverSnapshot: HealthSnapshot = { phase: "checking", scripted: noScripted };
+let snapshot: HealthSnapshot = serverSnapshot;
 const listeners = new Set<() => void>();
 let request = 0;
 
-function emit(next: HealthPhase) {
-  phase = next;
+function emit(next: HealthSnapshot) {
+  snapshot = next;
   for (const listener of listeners) listener();
 }
 
@@ -28,10 +36,10 @@ async function loadHealth() {
   try {
     const health = await getHealth();
     if (token !== request) return;
-    emit(phaseOf(health));
+    emit({ phase: phaseOf(health), scripted: readScripted(health.scripted) });
   } catch {
     if (token !== request) return;
-    emit("offline");
+    emit({ phase: "offline", scripted: noScripted });
   }
 }
 
@@ -64,7 +72,7 @@ function livePhase(model: HealthStatus["model"]): HealthPhase {
 }
 
 export function HealthProvider({ children }: { children: ReactNode }) {
-  const current = useSyncExternalStore(subscribe, getPhase, getServerPhase);
+  const current = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const refresh = useCallback(() => loadHealth(), []);
 
   useEffect(() => {
@@ -82,8 +90,28 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const value = useMemo(() => ({ phase: current, refresh }), [current, refresh]);
+  const value = useMemo(
+    () => ({ phase: current.phase, scripted: current.scripted, refresh }),
+    [current, refresh],
+  );
   return <HealthContext.Provider value={value}>{children}</HealthContext.Provider>;
+}
+
+export function isLivePhase(phase: HealthPhase): boolean {
+  switch (phase) {
+    case "checking":
+    case "preview":
+    case "offline":
+      return false;
+    case "ready":
+    case "test_model":
+    case "no_model":
+      return true;
+    default: {
+      const neverPhase: never = phase;
+      return neverPhase;
+    }
+  }
 }
 
 export function useHealth(): HealthContextValue {
@@ -97,10 +125,16 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-function getPhase() {
-  return phase;
+function getSnapshot() {
+  return snapshot;
 }
 
-function getServerPhase(): HealthPhase {
-  return "checking";
+function getServerSnapshot() {
+  return serverSnapshot;
+}
+
+function readScripted(value: unknown): readonly ApiRoute[] {
+  if (!Array.isArray(value)) return noScripted;
+  const routes = value.filter((item): item is ApiRoute => API_ROUTES.some((route) => route === item));
+  return routes.length === API_ROUTES.length ? API_ROUTES : routes;
 }

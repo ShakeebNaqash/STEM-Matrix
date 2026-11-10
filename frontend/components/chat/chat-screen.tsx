@@ -9,7 +9,7 @@ import { SessionList } from "@/components/chat/session-list";
 import { useSessions } from "@/components/session-provider";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { useHealth } from "@/components/health-provider";
+import { isLivePhase, useHealth } from "@/components/health-provider";
 import { enqueueFeedback } from "@/lib/feedback-outbox";
 import { isServerDown, listBooks, sendFeedback, streamChat } from "@/lib/api";
 import type { Book, ChatMessage, Citation, FeedbackRequest, HistoryTurn, MessageFeedback, Subject } from "@/lib/types";
@@ -41,7 +41,7 @@ function historyOf(messages: ChatMessage[]): HistoryTurn[] {
 
 export function ChatScreen() {
   const { store, dispatch } = useSessions();
-  const { phase, refresh } = useHealth();
+  const { phase, scripted, refresh } = useHealth();
   const session = store.sessions.find((item) => item.id === store.activeId) ?? store.sessions[0];
   const [draft, setDraft] = useState("");
   const [books, setBooks] = useState<Book[]>([]);
@@ -186,6 +186,7 @@ export function ChatScreen() {
                   ...message,
                   mode: event.data.mode,
                   retrievalNote: event.data.retrievalNote,
+                  scripted: event.data.scripted === true,
                 }),
               });
               break;
@@ -433,7 +434,12 @@ export function ChatScreen() {
             The StemMatrix server isn&apos;t running. This will reconnect on its own once it&apos;s back.
           </p>
         ) : null}
-        {phase === "no_model" ? (
+        {isLivePhase(phase) && scripted.includes("chat") ? (
+          <p className="px-4 pt-3 text-sm leading-6 text-muted-foreground">
+            Chat answers here are scripted previews. The real model and textbook search aren&apos;t connected yet.
+          </p>
+        ) : null}
+        {phase === "no_model" && !scripted.includes("chat") ? (
           <p className="px-4 pt-3 text-sm leading-6 text-muted-foreground">
             The model isn&apos;t running, so only calculations can be answered right now.
           </p>

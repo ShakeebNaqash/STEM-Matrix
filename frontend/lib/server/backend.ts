@@ -1,17 +1,9 @@
 import { connection } from "next/server";
+import { API_ROUTES, type ApiRoute } from "@/lib/types";
 
-const LIVE_ROUTES = [
-  "health",
-  "chat",
-  "books",
-  "sources",
-  "practice",
-  "grade",
-  "flashcards",
-  "feedback",
-] as const;
+export const LIVE_ROUTES = API_ROUTES;
 
-export type LiveRoute = (typeof LIVE_ROUTES)[number];
+export type LiveRoute = ApiRoute;
 
 const UNREACHABLE = "The StemMatrix server isn't running.";
 const TIMEOUT = "The StemMatrix server took too long to answer.";
@@ -45,6 +37,13 @@ export function isLive(route: LiveRoute): boolean {
     .map((item) => item.trim())
     .filter(isRouteName);
   return names.includes("*") || names.includes(route);
+}
+
+export function scriptedRoutes(): LiveRoute[] {
+  const url = process.env.BACKEND_URL?.trim() ?? "";
+  const mockHealth = process.env.MOCK_HEALTH?.trim() ?? "";
+  if (!url || mockHealth.length > 0) return [...LIVE_ROUTES];
+  return LIVE_ROUTES.filter((route) => !isLive(route));
 }
 
 export async function onRequest(): Promise<void> {

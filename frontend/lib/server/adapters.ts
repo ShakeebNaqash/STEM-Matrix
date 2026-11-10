@@ -38,7 +38,7 @@ type HealthBody = paths["/api/health"]["get"]["responses"][200]["content"]["appl
 type PracticeSet = components["schemas"]["PracticeSet"];
 type PracticeGradeResponse = components["schemas"]["PracticeGradeResponse"];
 
-export function adaptHealth(body: HealthBody): HealthStatus {
+export function adaptHealth(body: HealthBody): Omit<HealthStatus, "scripted"> {
   if (!isRecord(body) || typeof body.model_configured !== "boolean" || typeof body.model_mode !== "string") {
     throw new Error("unreadable");
   }
@@ -219,6 +219,7 @@ function adaptMeta(data: unknown): ChatStreamEvent | null {
     data: {
       messageId: data.message_id,
       mode,
+      scripted: false,
       ...(typeof data.retrieval_note === "string" ? { retrievalNote: data.retrieval_note } : {}),
     },
   };

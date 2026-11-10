@@ -1,5 +1,6 @@
 import type { components } from "@/lib/generated/backend-api";
 import { gradePractice } from "@/lib/mock/practice";
+import { parseDecimal } from "@/lib/number";
 import { adaptGrade } from "@/lib/server/adapters";
 import { backendFailure, backendFetch, isLive, upstreamFailure } from "@/lib/server/backend";
 
@@ -36,9 +37,8 @@ export async function POST(request: Request) {
   if (typeof answer !== "string") {
     return Response.json({ error: "Enter a number." }, { status: 400 });
   }
-  const trimmed = answer.trim();
-  const submitted = Number(trimmed);
-  if (trimmed === "" || !Number.isFinite(submitted)) {
+  const submitted = parseDecimal(answer);
+  if (submitted === null) {
     return Response.json({ error: "Enter a number." }, { status: 400 });
   }
 

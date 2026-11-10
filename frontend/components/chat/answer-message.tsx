@@ -8,6 +8,7 @@ import { MathText } from "@/components/math-text";
 import { SourceBadge } from "@/components/source-badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { modeLabel, sourceBorder } from "@/lib/format";
 import type { AnswerSegment, ChatMessage, Citation } from "@/lib/types";
 import { cn } from "cn";
@@ -51,10 +52,12 @@ export function AnswerMessage({
 
   return (
     <article className="max-w-[42rem]" aria-live={message.pending ? "polite" : undefined}>
-      {message.mode ? (
-        <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          {modeLabel(message.mode)}
-        </p>
+      {message.mode || message.scripted ? (
+        <div className="text-xs font-semibold tracking-wide text-muted-foreground">
+          {message.mode ? <span className="uppercase">{modeLabel(message.mode)}</span> : null}
+          {message.mode && message.scripted ? " · " : null}
+          {message.scripted ? <PreviewAnswer /> : null}
+        </div>
       ) : null}
       {message.retrievalNote ? (
         <p className="mt-2 rounded-lg bg-model-soft px-3 py-2 text-sm leading-6 text-model">
@@ -279,6 +282,19 @@ function SegmentBlock({
         </button>
       ) : null}
     </section>
+  );
+}
+
+function PreviewAnswer() {
+  return (
+    <Tooltip>
+      <TooltipTrigger className="font-semibold underline decoration-dotted underline-offset-2">
+        Preview answer
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs font-normal tracking-normal normal-case">
+        This is a scripted sample answer. The real model and textbook search aren&apos;t connected yet.
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
