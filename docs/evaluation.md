@@ -1,0 +1,1 @@
+Measure separately: retrieval Recall@5/MRR and citation correctness; spec JSON/Pydantic validity and semantic field accuracy; deterministic solver pass rate; explanation correctness/grounding via expert rubric; end-to-end success by task type. Use held-out expert-reviewed questions. Report not-run rather than inventing results.

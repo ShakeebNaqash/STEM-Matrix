@@ -1,0 +1,1 @@
+Record commit, corpus manifest and licenses, model ID/revision/license, dataset generation version/count/split seed, GPU/VRAM/CUDA/PyTorch, quantization and LoRA settings, training duration/loss/checkpoints, eval outputs, llama.cpp version and GGUF quantization. Do not commit secrets, model tokens, or non-redistributable books.

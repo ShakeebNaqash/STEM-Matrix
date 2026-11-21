@@ -1,0 +1,14 @@
+model_name: Qwen/Qwen2.5-1.5B-Instruct
+output_dir: finetune/outputs/adapter
+train_file: finetune/data/train.jsonl
+validation_file: finetune/data/valid.jsonl
+max_seq_length: 512
+learning_rate: 0.0002
+num_train_epochs: 3
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+eval_steps: 50
+save_steps: 50

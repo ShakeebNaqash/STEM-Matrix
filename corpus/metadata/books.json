@@ -1,0 +1,30 @@
+[
+  {
+    "id": "openstax-calculus-volume-1",
+    "title": "Calculus Volume 1",
+    "short_title": "Calculus Vol 1",
+    "subject": "mathematics",
+    "file": "books/calculus_vol1.pdf",
+    "source_url": "https://openstax.org/books/calculus-volume-1",
+    "license": "Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)",
+    "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "author": "Gilbert Strang and Edwin Jed Herman",
+    "edition": "1st Edition (2016)",
+    "accessed": "2026-11-10",
+    "enabled": true
+  },
+  {
+    "id": "openstax-university-physics-volume-2",
+    "title": "University Physics Volume 2",
+    "short_title": "University Physics Vol 2",
+    "subject": "physics",
+    "file": "books/university_physics_vol2.pdf",
+    "source_url": "https://openstax.org/books/university-physics-volume-2",
+    "license": "Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)",
+    "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "author": "Samuel J. Ling, William Moebs, and Jeff Sanny",
+    "edition": "1st Edition (2016)",
+    "accessed": "2026-11-10",
+    "enabled": true
+  }
+]
