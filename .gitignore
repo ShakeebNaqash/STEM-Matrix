@@ -1,3 +1,6 @@
 context.txt
 scripts/demo.env
 .DS_Store
+stemmatrix-unix/backend/model/model-q4_k_m.gguf
+corpus/books/university_physics_vol2.pdf
+corpus/books/calculus_vol1.pdf
